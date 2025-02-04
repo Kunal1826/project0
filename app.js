@@ -67,20 +67,73 @@ app.post("/create-note/:folderId", isLoggedIn, async (req, res) => {
 
 app.get("/show-folders", isLoggedIn, async (req, res) => {
   const userId = req.user._id;
-  console.log(userId)
-  const folders = await FolderModel.find({ userId }).populate("notes");
-  res.status(200).json({ folders}); 
+  console.log(userId);
+
+  const folders = await FolderModel.find({ userId })
+    .populate("notes")
+    .sort({ updatedAt: -1 }); 
+
+  res.status(200).json({ folders });
 });
 
-app.get("/show-notes/:folderId", isLoggedIn, async (req, res) => {
-  const folderId = req.params.folderId;
-  const notes = await NoteModel.find({ folderId });
+
+// app.get("/show-notes/:folderId", isLoggedIn, async (req, res) => {
+//   const folderId = req.params.folderId;
+//   const notes = await NoteModel.find({ folderId });
+//   res.status(200).json({ notes });
+// });
+
+app.get("/show-notes/:folderId/:sortOrder?", isLoggedIn, async (req, res) => {
+  const { folderId, sortOrder } = req.params;
+
+  let sortOption = { createdAt: -1 }; 
+
+  if (sortOrder === "oldest") {
+    sortOption = { createdAt: 1 }; 
+  } else if (sortOrder === "recent") {
+    sortOption = { updatedAt: -1 }; 
+  }
+
+  const notes = await NoteModel.find({ folderId }).sort(sortOption);
+
   res.status(200).json({ notes });
 });
 
-app
 
 
+app.post("/update-note/:noteId", isLoggedIn, async (req, res) => {
+  const noteId = req.params.noteId;
+  const { title, content } = req.body;
+  const note = await NoteModel.findByIdAndUpdate(noteId, { title, content });
+  note.save();
+  res.status(200).json({ message: "Note updated successfully", note });
+});
+
+app.post("/update-folder/:folderId", isLoggedIn, async (req, res) => {
+  const folderId = req.params.folderId;
+  const { title } = req.body;
+  const folder = await FolderModel.findByIdAndUpdate(folderId, { title });
+  folder.save();
+  res.status(200).json({ message: "Folder updated successfully", folder });
+});
+
+app.get("/delete-note/:noteId", isLoggedIn, async (req, res) => {
+  const noteId = req.params.noteId;
+  const note = await NoteModel.findByIdAndDelete(noteId);
+  res.status(200).json({ message: "Note deleted successfully", note });
+});
+
+app.get("/delete-folder/:folderId", isLoggedIn, async (req, res) => {
+  const folderId = req.params.folderId;
+  const folder = await FolderModel.findByIdAndDelete(folderId);
+  res.status(200).json({ message: "Folder deleted successfully", folder });
+});
+
+
+app.get("/logout", isLoggedIn, async (req, res) => {
+  res.cookie("token", "", { expires: new Date(0) });
+  res.status(200).json({ message: "Logout successful" });
+});
 
 
 async function isLoggedIn(req, res, next) {
